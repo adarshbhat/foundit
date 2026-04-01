@@ -573,6 +573,230 @@ h1, h2, h3, h4, h5, h6 {
   outline-offset: -2px;
 }
 
+/* ── Breadcrumb items ───────────────────────────────────────── */
+.breadcrumb__item {
+  color: var(--colour-text-muted);
+  font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.breadcrumb__item:not(:disabled):active {
+  background: var(--colour-border);
+  color: var(--colour-text);
+}
+
+.breadcrumb__item--active {
+  color: var(--colour-text);
+  font-weight: 600;
+}
+
+.breadcrumb__sep {
+  color: var(--colour-border);
+  user-select: none;
+  font-size: var(--font-size-sm);
+}
+
+/* ── Bin card action buttons ────────────────────────────────── */
+.bin-card__actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.bin-card__action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-md);
+  color: var(--colour-text-muted);
+  transition: background var(--transition-fast), color var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bin-card__action-btn:active {
+  background: var(--colour-bg);
+  color: var(--colour-text);
+}
+
+.bin-card__action-btn--danger:active {
+  background: #fee2e2;
+  color: var(--colour-danger);
+}
+
+/* ── Modal ──────────────────────────────────────────────────── */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+}
+
+.modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--colour-overlay);
+  animation: modal-overlay-in var(--transition-normal) ease both;
+}
+
+@keyframes modal-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal__sheet {
+  position: relative;
+  width: 100%;
+  background: var(--colour-surface);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding-bottom: calc(var(--safe-bottom) + var(--space-4));
+  max-height: 90dvh;
+  overflow-y: auto;
+  animation: modal-sheet-in var(--transition-normal) ease both;
+}
+
+@keyframes modal-sheet-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--colour-border);
+}
+
+.modal__title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+  color: var(--colour-text-muted);
+  transition: background var(--transition-fast);
+}
+
+.modal__close:active {
+  background: var(--colour-bg);
+}
+
+.modal__body {
+  padding: var(--space-5) var(--space-4) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.modal__message {
+  font-size: var(--font-size-sm);
+  color: var(--colour-text-muted);
+  line-height: var(--line-height-normal);
+}
+
+.modal__footer {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+/* ── Form fields ────────────────────────────────────────────── */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--colour-text-muted);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--colour-border);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-base);
+  background: var(--colour-surface);
+  color: var(--colour-text);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.form-input:focus {
+  border-color: var(--colour-primary);
+  box-shadow: 0 0 0 3px var(--colour-primary-light);
+}
+
+.form-input.is-error {
+  border-color: var(--colour-danger);
+}
+
+.form-input.is-error:focus {
+  box-shadow: 0 0 0 3px #fee2e2;
+}
+
+.form-error {
+  font-size: var(--font-size-xs);
+  color: var(--colour-danger);
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn--primary {
+  background: var(--colour-primary);
+  color: white;
+}
+
+.btn--primary:active {
+  background: var(--colour-primary-dark);
+}
+
+.btn--ghost {
+  color: var(--colour-text-muted);
+}
+
+.btn--ghost:active {
+  background: var(--colour-bg);
+}
+
+.btn--danger {
+  background: var(--colour-danger);
+  color: white;
+}
+
+.btn--danger:active {
+  opacity: 0.85;
+}
+
 /* ── Utility ────────────────────────────────────────────────── */
 [hidden] {
   display: none !important;

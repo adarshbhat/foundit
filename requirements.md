@@ -33,7 +33,7 @@ Establish the technical foundation: a working offline-capable PWA shell that ins
 
 ---
 
-## Milestone 2 — Storage Bins {#milestone-3}
+## Milestone 2 — Storage Bins {#milestone-2}
 
 Allow users to model their physical storage locations as a nestable hierarchy of named bins.
 
@@ -48,7 +48,7 @@ Allow users to model their physical storage locations as a nestable hierarchy of
 
 ---
 
-## Milestone 3 — Object Inventory {#milestone-4}
+## Milestone 3 — Object Inventory {#milestone-3}
 
 Allow users to create and manage an inventory of physical objects and assign each to a storage bin.
 
@@ -63,7 +63,7 @@ Allow users to create and manage an inventory of physical objects and assign eac
 
 ---
 
-## Milestone 4 — Object Lookup & Movement {#milestone-5}
+## Milestone 4 — Object Lookup & Movement {#milestone-4}
 
 Allow users to quickly find where an object is and move it to a different location.
 
@@ -79,7 +79,7 @@ Allow users to quickly find where an object is and move it to a different locati
 
 ---
 
-## Milestone 5 — Swipe-to-Inventory {#milestone-6}
+## Milestone 5 — Swipe-to-Inventory {#milestone-5}
 
 Allow users to audit the contents of a bin using a card-swipe interaction, confirming or flagging each item one at a time.
 
@@ -95,7 +95,7 @@ Allow users to audit the contents of a bin using a card-swipe interaction, confi
 
 ---
 
-## Milestone 6 — Orphaned Objects Management {#milestone-7}
+## Milestone 6 — Orphaned Objects Management {#milestone-6}
 
 Allow users to review all unhoused items and assign each one to a storage bin.
 
@@ -109,7 +109,7 @@ Allow users to review all unhoused items and assign each one to a storage bin.
 
 ---
 
-## Milestone 7 — Polish & Hardening {#milestone-8}
+## Milestone 7 — Polish & Hardening {#milestone-7}
 
 Refine the experience, ensure reliability, and prepare the app for everyday use.
 

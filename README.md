@@ -18,7 +18,7 @@ An offline Progressive Web App (PWA) that runs in a phone's browser and helps yo
 - **vite-plugin-pwa / Workbox** — service worker generation and precaching
 - **IndexedDB** — all persistence, via a thin promise-based wrapper (`src/db.ts`)
 - **Vitest + jsdom + fake-indexeddb** — unit test harness
-- **Azure Static Web Apps** — deployment target
+- **GitHub Pages** — deployment target via GitHub Actions
 
 ## Getting Started
 
@@ -61,51 +61,29 @@ tests/
   db.test.ts       IndexedDB layer tests (23 cases)
   install.test.ts  Install detection & navigation tests (16 cases)
 
-staticwebapp.config.json   Azure Static Web Apps routing + headers
 .github/workflows/
-  azure-deploy.yml         CI/CD pipeline (build → test → deploy)
+  deploy.yml               CI/CD pipeline (build → test → deploy to GitHub Pages)
 ```
 
-## Deployment (Azure Static Web Apps)
+## Deployment (GitHub Pages)
 
-### Azure Resources
+Deployment is fully automated via GitHub Actions. Every push to `main` triggers the workflow at `.github/workflows/deploy.yml`, which:
 
-| Resource | Name | Location |
-|---|---|---|
-| Resource Group | `foundit-rg` | `centralus` |
-| Static Web App | `foundit-swa` | `centralus` |
+1. Installs dependencies (`npm ci`)
+2. Runs the test suite (`npm test`)
+3. Builds the app (`npm run build`)
+4. Publishes the `dist/` directory to GitHub Pages
 
-**Live URL:** https://brave-hill-00c299e10.1.azurestaticapps.net
+The workflow can also be triggered manually from the **Actions** tab using the `workflow_dispatch` event.
 
-### Manual Deployment
-
-GitHub Actions hosted runners are disabled in this environment. Deploy manually from the command line:
-
-```bash
-# 1. Build
-npm run build
-
-# 2. Deploy
-TOKEN=$(az staticwebapp secrets list \
-  --name foundit-swa \
-  --resource-group foundit-rg \
-  --query "properties.apiKey" -o tsv)
-
-~/.swa/deploy/08e29138cd3dcda4ffda6d587aa580028110c1c7/StaticSitesClient.exe upload \
-  --apiToken "$TOKEN" \
-  --app dist/ \
-  --skipAppBuild true \
-  --verbose
-```
-
-> **Note:** `StaticSitesClient.exe` is downloaded automatically on first use of the SWA CLI (`npx @azure/static-web-apps-cli deploy`). The path above reflects the cached binary on Windows. Use the SWA CLI directly on Linux/macOS.
+**Live URL:** https://adarshhbhat.github.io/foundit/
 
 ## Milestones
 
 | # | Title | Status |
 |---|---|---|
 | 1 | Core Shell & Offline Infrastructure | ✅ Done |
-| 2 | Storage Bins | Pending |
+| 2 | Storage Bins | ✅ Done |
 | 3 | Object Inventory | Pending |
 | 4 | Object Lookup & Movement | Pending |
 | 5 | Swipe-to-Inventory | Pending |

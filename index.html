@@ -153,6 +153,51 @@
 
       </main>
 
+      <!-- ── Bin name modal (create / rename) ── -->
+      <div id="bin-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="bin-modal-title">
+        <div id="bin-modal-overlay" class="modal__overlay"></div>
+        <div class="modal__sheet">
+          <div class="modal__header">
+            <h2 id="bin-modal-title" class="modal__title">New Bin</h2>
+            <button id="bin-modal-close" class="modal__close" type="button" aria-label="Close">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="modal__body">
+            <div class="form-field">
+              <label class="form-label" for="bin-name-input">Name</label>
+              <input id="bin-name-input" class="form-input" type="text" maxlength="64"
+                     placeholder="e.g. Garage" autocomplete="off" autocorrect="off"
+                     autocapitalize="words" />
+              <p id="bin-name-error" class="form-error" hidden></p>
+            </div>
+          </div>
+          <div class="modal__footer">
+            <button id="bin-modal-cancel" class="btn btn--ghost" type="button">Cancel</button>
+            <button id="bin-modal-confirm" class="btn btn--primary" type="button">Create</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Delete confirmation modal ── -->
+      <div id="delete-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+        <div id="delete-modal-overlay" class="modal__overlay"></div>
+        <div class="modal__sheet">
+          <div class="modal__header">
+            <h2 id="delete-modal-title" class="modal__title">Delete Bin?</h2>
+          </div>
+          <div class="modal__body">
+            <p id="delete-modal-body" class="modal__message"></p>
+          </div>
+          <div class="modal__footer">
+            <button id="delete-modal-cancel" class="btn btn--ghost" type="button">Cancel</button>
+            <button id="delete-modal-confirm" class="btn btn--danger" type="button">Delete</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Bottom navigation ── -->
       <nav class="bottom-nav" aria-label="Main navigation">
 

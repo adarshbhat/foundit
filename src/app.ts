@@ -1,5 +1,6 @@
 import { applyInstallGate } from './install';
 import { openDB } from './db';
+import { initBins } from './bins';
 
 export type Route = 'home' | 'bins' | 'search' | 'orphans';
 
@@ -70,5 +71,6 @@ export async function init(): Promise<boolean> {
 
   await openDB();
   setupNavigation();
+  initBins();
   return true;
 }
