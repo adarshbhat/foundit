@@ -406,7 +406,14 @@ async function submitBinModal(): Promise<void> {
       await createBin(input.value, currentParentId);
     }
     closeBinModal();
-    await renderBinView();
+
+    // If we're inside a bin detail view, re-render that view to show new/renamed bins.
+    // Otherwise, re-render the root level view.
+    if (currentParentId) {
+      await navigateToBin(currentParentId);
+    } else {
+      await renderBinView();
+    }
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Something went wrong.';
