@@ -476,7 +476,10 @@ async function confirmDelete(): Promise<void> {
 
 function openAddChoiceModal(): void {
   const modal = document.getElementById('add-choice-modal');
-  if (modal) modal.hidden = false;
+  if (!modal) return;
+  const itemBtn = document.getElementById('add-choice-item');
+  if (itemBtn) itemBtn.hidden = currentParentId === null;
+  modal.hidden = false;
 }
 
 function closeAddChoiceModal(): void {
