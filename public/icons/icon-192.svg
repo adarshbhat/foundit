@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <!-- Background rounded square -->
+  <rect width="192" height="192" rx="38" fill="#6366f1"/>
+  <!-- Magnifying glass circle -->
+  <circle cx="84" cy="80" r="38" fill="none" stroke="white" stroke-width="13"/>
+  <!-- Magnifying glass handle -->
+  <line x1="112" y1="108" x2="148" y2="144" stroke="white" stroke-width="15" stroke-linecap="round"/>
+  <!-- Checkmark inside -->
+  <path d="M66 80 L80 94 L102 68" fill="none" stroke="white" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

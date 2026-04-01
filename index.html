@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#6366f1" />
+    <meta name="description" content="Track where you put things" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="foundit" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>foundit</title>
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         INSTALL SPLASH — shown when not running in standalone mode
+         ═══════════════════════════════════════════════════════════ -->
+    <div id="install-splash" class="splash" hidden>
+      <div class="splash__card">
+        <img src="/icons/icon-512.svg" alt="" class="splash__logo" width="96" height="96" aria-hidden="true" />
+        <h1 class="splash__title">foundit</h1>
+        <p class="splash__tagline">Track where you put things</p>
+
+        <!-- iOS instructions -->
+        <div id="ios-hint" class="splash__hint" hidden>
+          <p class="splash__hint-intro">Install to your home screen to use this app:</p>
+          <ol class="splash__steps">
+            <li>Tap the <strong>Share</strong> button <span class="splash__icon-inline" aria-label="Share icon">⬆</span> at the bottom of Safari</li>
+            <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+            <li>Tap <strong>Add</strong> in the top-right corner</li>
+          </ol>
+        </div>
+
+        <!-- Android / Chrome instructions -->
+        <div id="android-hint" class="splash__hint" hidden>
+          <p class="splash__hint-intro">Install to your home screen to use this app:</p>
+          <ol class="splash__steps">
+            <li>Tap the <strong>menu</strong> button <span class="splash__icon-inline" aria-label="Menu icon">⋮</span> in Chrome</li>
+            <li>Tap <strong>Add to Home screen</strong></li>
+            <li>Tap <strong>Add</strong> to confirm</li>
+          </ol>
+        </div>
+
+        <!-- Generic / desktop fallback -->
+        <div id="desktop-hint" class="splash__hint">
+          <p>This app must be installed to your device's home screen to use. Open it in a mobile browser for install instructions.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         APP SHELL — shown in standalone mode
+         ═══════════════════════════════════════ -->
+    <div id="app-shell" hidden aria-label="foundit">
+
+      <!-- Update available banner -->
+      <div id="update-banner" class="update-banner" hidden role="status" aria-live="polite">
+        <span class="update-banner__text">Update available</span>
+        <button id="update-btn" class="update-banner__btn" type="button">Refresh</button>
+      </div>
+
+      <!-- ── Main content area ── -->
+      <main id="main-content" class="main-content">
+
+        <!-- Home view -->
+        <section id="view-home" data-view="home" class="view" hidden aria-labelledby="home-heading">
+          <header class="view-header">
+            <h1 id="home-heading" class="view-header__title">foundit</h1>
+          </header>
+          <div class="view-body">
+            <div id="recent-items" class="recent-items">
+              <!-- Populated by app.ts in later milestones -->
+            </div>
+            <p id="home-empty" class="empty-state">
+              No recent items yet.<br />
+              Start by creating some storage bins.
+            </p>
+          </div>
+        </section>
+
+        <!-- Bins view -->
+        <section id="view-bins" data-view="bins" class="view" hidden aria-labelledby="bins-heading">
+          <header class="view-header">
+            <h1 id="bins-heading" class="view-header__title">Bins</h1>
+            <button class="view-header__action" type="button" id="add-bin-btn" aria-label="Add bin">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </header>
+          <nav class="breadcrumb" aria-label="Bin location" id="bin-breadcrumb">
+            <!-- Populated in Milestone 2 -->
+          </nav>
+          <div class="view-body">
+            <div id="bin-list" class="item-list">
+              <!-- Populated in Milestone 2 -->
+            </div>
+            <p id="bins-empty" class="empty-state">
+              No bins yet. Tap <strong>+</strong> to create your first storage location.
+            </p>
+          </div>
+        </section>
+
+        <!-- Search view -->
+        <section id="view-search" data-view="search" class="view" hidden aria-labelledby="search-heading">
+          <header class="view-header">
+            <h1 id="search-heading" class="view-header__title">Search</h1>
+          </header>
+          <div class="view-body view-body--no-pad-top">
+            <div class="search-bar">
+              <svg class="search-bar__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                type="search"
+                id="search-input"
+                class="search-bar__input"
+                placeholder="Search items and bins…"
+                aria-label="Search items and bins"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+              />
+            </div>
+            <div id="search-results" class="search-results" role="list" aria-live="polite" aria-label="Search results">
+              <!-- Populated by search logic in Milestone 4 -->
+            </div>
+            <p id="search-empty" class="empty-state" hidden>No results found.</p>
+          </div>
+        </section>
+
+        <!-- Orphans view -->
+        <section id="view-orphans" data-view="orphans" class="view" hidden aria-labelledby="orphans-heading">
+          <header class="view-header">
+            <h1 id="orphans-heading" class="view-header__title">Unhoused Items</h1>
+          </header>
+          <div class="view-body">
+            <div id="orphan-list" class="item-list">
+              <!-- Populated in Milestone 6 -->
+            </div>
+            <p id="orphans-empty" class="empty-state">
+              All items have a home!
+            </p>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- ── Bottom navigation ── -->
+      <nav class="bottom-nav" aria-label="Main navigation">
+
+        <button class="nav__link" data-route="home" type="button" aria-current="page">
+          <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span class="nav__label">Home</span>
+        </button>
+
+        <button class="nav__link" data-route="bins" type="button" aria-current="false">
+          <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          </svg>
+          <span class="nav__label">Bins</span>
+        </button>
+
+        <button class="nav__link" data-route="search" type="button" aria-current="false">
+          <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <span class="nav__label">Search</span>
+        </button>
+
+        <button class="nav__link" data-route="orphans" type="button" aria-current="false">
+          <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span class="nav__label">
+            Unhoused
+            <span id="orphan-badge" class="nav__badge" aria-label="unhoused items" hidden></span>
+          </span>
+        </button>
+
+      </nav>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
