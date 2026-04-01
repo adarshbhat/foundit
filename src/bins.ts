@@ -137,7 +137,7 @@ export async function navigateToBin(binId: string | null): Promise<void> {
   const itemAddBtn = document.getElementById('add-item-btn');
 
   if (binId) {
-    // Show bin detail view with items
+    // Show bin detail view with items and child bins
     if (binDetail) binDetail.hidden = false;
     if (binList) binList.hidden = true;
 
@@ -145,6 +145,17 @@ export async function navigateToBin(binId: string | null): Promise<void> {
     const bin = await getById('bins', binId);
     const titleEl = document.getElementById('bin-detail-title');
     if (titleEl && bin) titleEl.textContent = bin.name;
+
+    // Render child bins and items for this bin
+    const childBinsContainer = document.getElementById('child-bin-list');
+    if (childBinsContainer) {
+      const childBins = await getByIndex('bins', 'parentId', binId);
+      childBins.sort((a, b) => a.name.localeCompare(b.name));
+      childBinsContainer.innerHTML = '';
+      for (const childBin of childBins) {
+        childBinsContainer.appendChild(await makeBinCard(childBin));
+      }
+    }
 
     // Render items for this bin
     await renderItemsForBin(binId);
@@ -166,6 +177,10 @@ export async function navigateToBin(binId: string | null): Promise<void> {
     if (binDetail) binDetail.hidden = true;
     if (binList) binList.hidden = false;
     clearItemList();
+
+    // Clear child bin list
+    const childBinList = document.getElementById('child-bin-list');
+    if (childBinList) childBinList.innerHTML = '';
   }
 }
 
