@@ -797,6 +797,168 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.85;
 }
 
+/* ── Item detail modal ─────────────────────────────────────── */
+.modal__sheet--tall {
+  max-height: 85dvh;
+}
+
+.detail-name {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.detail-desc {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.detail-section__title {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--colour-text-muted);
+}
+
+.detail-location {
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+  border-bottom: none;
+  background: transparent;
+}
+
+/* ── Location history entries ──────────────────────────────── */
+.detail-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.history-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--colour-bg);
+  font-size: var(--font-size-sm);
+}
+
+.history-entry__name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-entry__date {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+}
+
+/* ── Most likely locations ─────────────────────────────────── */
+.detail-likely {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.likely-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--colour-primary-light);
+  color: var(--colour-primary-dark);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+/* ── Bin picker ────────────────────────────────────────────── */
+.picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.picker-row__name {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  transition: background var(--transition-fast);
+}
+
+.picker-row__name:active {
+  background: var(--colour-primary-light);
+}
+
+.picker-row__drill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--colour-text-muted);
+  border-left: 1px solid var(--colour-border);
+  transition: background var(--transition-fast);
+}
+
+.picker-row__drill:active {
+  background: var(--colour-bg);
+}
+
+/* ── Item location in cards ────────────────────────────────── */
+.item-card__location {
+  margin-top: var(--space-1);
+}
+
+/* ── Recent items section ──────────────────────────────────── */
+.recent-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.section-title {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--colour-text-muted);
+}
+
+/* ── Small empty state ─────────────────────────────────────── */
+.empty-state--sm {
+  min-height: 4rem;
+  padding: var(--space-4) var(--space-4);
+}
+
+/* ── Text helpers ──────────────────────────────────────────── */
+.text-muted { color: var(--colour-text-muted); }
+.text-sm    { font-size: var(--font-size-sm); }
+
 /* ── Utility ────────────────────────────────────────────────── */
 [hidden] {
   display: none !important;

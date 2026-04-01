@@ -1,5 +1,5 @@
 import { getById, getByIndex, put, deleteById } from './db';
-import type { Item } from './types';
+import type { Bin, Item, LocationHistoryEntry } from './types';
 
 // ── Business logic ─────────────────────────────────────────────
 
@@ -105,6 +105,140 @@ export async function getOrphanedItems(): Promise<Item[]> {
   return items;
 }
 
+/**
+ * Move an item to a new bin (or orphan it). Records a location history entry.
+ * @throws if item is not found.
+ */
+export async function moveItem(
+  itemId: string,
+  newBinId: string | null,
+): Promise<Item> {
+  const item = await getById('items', itemId);
+  if (!item) throw new Error('Item not found.');
+
+  // Resolve the destination bin name for the history entry
+  let binName = 'Unhoused';
+  if (newBinId) {
+    const bin = await getById('bins', newBinId);
+    binName = bin ? bin.name : 'Unknown';
+  }
+
+  const entry: LocationHistoryEntry = {
+    binId: newBinId,
+    binName,
+    movedAt: new Date().toISOString(),
+  };
+
+  const history = [entry, ...(item.locationHistory ?? [])].slice(0, 10);
+
+  const updated: Item = {
+    ...item,
+    binId: newBinId,
+    locationHistory: history,
+    updatedAt: new Date().toISOString(),
+  };
+  await put('items', updated);
+  return updated;
+}
+
+/**
+ * Build the full location path for a bin, from root to the given bin.
+ * Returns an array of {id, name} from the topmost ancestor down.
+ */
+export async function getLocationPath(
+  binId: string | null,
+): Promise<{ id: string; name: string }[]> {
+  if (!binId) return [];
+
+  const path: { id: string; name: string }[] = [];
+  let current: string | null = binId;
+
+  while (current !== null) {
+    const bin: Bin | null = await getById('bins', current);
+    if (!bin) break;
+    path.unshift({ id: bin.id, name: bin.name });
+    current = bin.parentId;
+  }
+
+  return path;
+}
+
+/**
+ * Compute the most likely bins for an item, based on location history frequency.
+ * Returns up to 3 bins sorted by frequency (descending), excluding null (orphaned).
+ */
+export function getMostLikelyBins(
+  item: Item,
+): { binId: string; binName: string; count: number }[] {
+  const history = item.locationHistory ?? [];
+  const counts = new Map<string, { binName: string; count: number }>();
+
+  for (const entry of history) {
+    if (!entry.binId) continue;
+    const existing = counts.get(entry.binId);
+    if (existing) {
+      existing.count++;
+    } else {
+      counts.set(entry.binId, { binName: entry.binName, count: 1 });
+    }
+  }
+
+  return Array.from(counts.entries())
+    .map(([binId, { binName, count }]) => ({ binId, binName, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+}
+
+// ── Recently accessed items (localStorage) ────────────────────
+
+const RECENT_KEY = 'foundit_recent_items';
+const RECENT_MAX = 5;
+
+/**
+ * Record that an item was accessed (viewed or moved).
+ * Maintains a list of at most 5 item IDs, newest first.
+ */
+export function trackRecentAccess(itemId: string): void {
+  const ids = getRecentItemIds();
+  const filtered = ids.filter((id) => id !== itemId);
+  filtered.unshift(itemId);
+  const trimmed = filtered.slice(0, RECENT_MAX);
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(trimmed));
+  } catch {
+    // Storage full or unavailable — silently ignore
+  }
+}
+
+/**
+ * Get the list of recently accessed item IDs, newest first.
+ */
+export function getRecentItemIds(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // Corrupt or unavailable — return empty
+  }
+  return [];
+}
+
+/**
+ * Get recently accessed items, resolving IDs to full Item records.
+ * Skips items that no longer exist.
+ */
+export async function getRecentItems(): Promise<Item[]> {
+  const ids = getRecentItemIds();
+  const items: Item[] = [];
+  for (const id of ids) {
+    const item = await getById('items', id);
+    if (item) items.push(item);
+  }
+  return items;
+}
+
 // ── UI Module state ───────────────────────────────────────────
 
 /** The bin ID for which we're currently adding/managing items. */
@@ -153,10 +287,26 @@ export function clearItemList(): void {
 
 // ── Item card rendering ────────────────────────────────────────
 
-function makeItemCard(item: Item): HTMLElement {
+export function makeItemCard(item: Item): HTMLElement {
   const card = document.createElement('div');
   card.className = 'item-card';
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `View ${item.name}`);
   card.dataset.itemId = item.id;
+
+  // Click card to open item detail (unless clicking an action button)
+  card.addEventListener('click', (e) => {
+    if (!(e.target as Element).closest('.bin-card__actions')) {
+      openItemDetail(item).catch(console.error);
+    }
+  });
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openItemDetail(item).catch(console.error);
+    }
+  });
 
   // Icon
   const iconEl = document.createElement('div');
@@ -207,9 +357,16 @@ function makeItemCard(item: Item): HTMLElement {
   actions.appendChild(editBtn);
   actions.appendChild(deleteBtn);
 
+  // Chevron
+  const chevron = document.createElement('span');
+  chevron.className = 'item-card__chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  chevron.innerHTML = SVG_CHEVRON;
+
   card.appendChild(iconEl);
   card.appendChild(body);
   card.appendChild(actions);
+  card.appendChild(chevron);
 
   return card;
 }
@@ -319,6 +476,303 @@ async function confirmDeleteItem(): Promise<void> {
   }
 }
 
+// ── Item detail modal ─────────────────────────────────────────
+
+/** Callback when the item detail modal needs to trigger a re-render (e.g. after move). */
+let _onItemDetailClose: (() => void) | null = null;
+
+export function setItemDetailCloseCallback(cb: () => void): void {
+  _onItemDetailClose = cb;
+}
+
+/** Callback to navigate to a specific bin (set by bins module to avoid circular import). */
+let _navigateToBinCallback: ((binId: string) => void) | null = null;
+
+export function setNavigateToBinCallback(
+  cb: (binId: string) => void,
+): void {
+  _navigateToBinCallback = cb;
+}
+
+/** Callback to change the active view/route (set by app module to avoid circular import). */
+let _navigateCallback: ((route: string) => void) | null = null;
+
+export function setNavigateCallback(cb: (route: string) => void): void {
+  _navigateCallback = cb;
+}
+
+async function openItemDetail(item: Item): Promise<void> {
+  // Track recent access
+  trackRecentAccess(item.id);
+
+  const modal = document.getElementById('item-detail-modal');
+  const nameEl = document.getElementById('item-detail-name');
+  const descEl = document.getElementById('item-detail-desc');
+  const locationEl = document.getElementById('item-detail-location');
+  const historyEl = document.getElementById('item-detail-history');
+  const likelyEl = document.getElementById('item-detail-likely');
+  const moveBtn = document.getElementById('item-detail-move');
+  const editBtn = document.getElementById('item-detail-edit');
+  const deleteBtn = document.getElementById('item-detail-delete');
+
+  if (!modal || !nameEl || !descEl || !locationEl || !historyEl || !likelyEl)
+    return;
+
+  nameEl.textContent = item.name;
+  descEl.textContent = item.description || 'No description';
+  descEl.classList.toggle('text-muted', !item.description);
+
+  // Location breadcrumb
+  locationEl.innerHTML = '';
+  const path = await getLocationPath(item.binId);
+  if (path.length === 0) {
+    const span = document.createElement('span');
+    span.className = 'text-muted';
+    span.textContent = 'Unhoused';
+    locationEl.appendChild(span);
+  } else {
+    for (let i = 0; i < path.length; i++) {
+      if (i > 0) {
+        const sep = document.createElement('span');
+        sep.className = 'breadcrumb__sep';
+        sep.setAttribute('aria-hidden', 'true');
+        sep.textContent = ' → ';
+        locationEl.appendChild(sep);
+      }
+      const crumb = document.createElement('button');
+      crumb.className = 'breadcrumb__item';
+      crumb.setAttribute('type', 'button');
+      crumb.textContent = path[i].name;
+      const binId = path[i].id;
+      crumb.addEventListener('click', () => {
+        closeItemDetail();
+        _navigateCallback?.('bins');
+        _navigateToBinCallback?.(binId);
+      });
+      locationEl.appendChild(crumb);
+    }
+  }
+
+  // Location history
+  historyEl.innerHTML = '';
+  const history = item.locationHistory ?? [];
+  if (history.length === 0) {
+    historyEl.innerHTML = '<p class="text-muted text-sm">No movement history yet.</p>';
+  } else {
+    for (const entry of history) {
+      const row = document.createElement('div');
+      row.className = 'history-entry';
+      const name = document.createElement('span');
+      name.className = 'history-entry__name';
+      name.textContent = entry.binName;
+      const date = document.createElement('span');
+      date.className = 'history-entry__date text-muted';
+      date.textContent = new Date(entry.movedAt).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      row.appendChild(name);
+      row.appendChild(date);
+      historyEl.appendChild(row);
+    }
+  }
+
+  // Most likely locations
+  likelyEl.innerHTML = '';
+  const likely = getMostLikelyBins(item);
+  if (likely.length === 0) {
+    likelyEl.innerHTML = '<p class="text-muted text-sm">Not enough data yet.</p>';
+  } else {
+    for (const loc of likely) {
+      const chip = document.createElement('span');
+      chip.className = 'likely-chip';
+      chip.textContent = `${loc.binName} (${loc.count})`;
+      likelyEl.appendChild(chip);
+    }
+  }
+
+  // Wire action buttons
+  moveBtn?.replaceWith(moveBtn.cloneNode(true));
+  editBtn?.replaceWith(editBtn.cloneNode(true));
+  deleteBtn?.replaceWith(deleteBtn.cloneNode(true));
+
+  document.getElementById('item-detail-move')?.addEventListener('click', () => {
+    closeItemDetail();
+    openBinPicker(async (binId) => {
+      const updated = await moveItem(item.id, binId);
+      showToast(`Moved to ${updated.binId ? (await getById('bins', updated.binId))?.name ?? 'bin' : 'Unhoused'}`);
+      if (_currentBinId) await renderItemsForBin(_currentBinId);
+      _onItemDetailClose?.();
+    });
+  });
+
+  document.getElementById('item-detail-edit')?.addEventListener('click', () => {
+    closeItemDetail();
+    openItemModal(item);
+  });
+
+  document.getElementById('item-detail-delete')?.addEventListener('click', () => {
+    closeItemDetail();
+    openDeleteItemModal(item).catch(console.error);
+  });
+
+  modal.hidden = false;
+}
+
+function closeItemDetail(): void {
+  const modal = document.getElementById('item-detail-modal');
+  if (modal) modal.hidden = true;
+}
+
+// ── Bin picker modal ──────────────────────────────────────────
+
+let _binPickerCallback: ((binId: string | null) => void) | null = null;
+let _binPickerParentId: string | null = null;
+
+function openBinPicker(
+  onSelect: (binId: string | null) => void,
+): void {
+  _binPickerCallback = onSelect;
+  _binPickerParentId = null;
+
+  const modal = document.getElementById('bin-picker-modal');
+  if (!modal) return;
+  modal.hidden = false;
+
+  renderBinPickerList().catch(console.error);
+}
+
+function closeBinPicker(): void {
+  const modal = document.getElementById('bin-picker-modal');
+  if (modal) modal.hidden = true;
+  _binPickerCallback = null;
+}
+
+async function renderBinPickerList(): Promise<void> {
+  const list = document.getElementById('bin-picker-list');
+  const breadcrumb = document.getElementById('bin-picker-breadcrumb');
+  const emptyEl = document.getElementById('bin-picker-empty');
+  if (!list || !breadcrumb) return;
+
+  // Render breadcrumb
+  breadcrumb.innerHTML = '';
+  const crumbs: Bin[] = [];
+  let id: string | null = _binPickerParentId;
+  while (id !== null) {
+    const bin = await getById('bins', id);
+    if (!bin) break;
+    crumbs.unshift(bin);
+    id = bin.parentId;
+  }
+
+  const rootBtn = document.createElement('button');
+  rootBtn.className = 'breadcrumb__item' + (_binPickerParentId === null ? ' breadcrumb__item--active' : '');
+  rootBtn.setAttribute('type', 'button');
+  rootBtn.textContent = 'Root';
+  rootBtn.disabled = _binPickerParentId === null;
+  if (_binPickerParentId !== null) {
+    rootBtn.addEventListener('click', () => {
+      _binPickerParentId = null;
+      renderBinPickerList().catch(console.error);
+    });
+  }
+  breadcrumb.appendChild(rootBtn);
+
+  for (const bin of crumbs) {
+    const sep = document.createElement('span');
+    sep.className = 'breadcrumb__sep';
+    sep.setAttribute('aria-hidden', 'true');
+    sep.textContent = '/';
+    breadcrumb.appendChild(sep);
+
+    const isActive = bin.id === _binPickerParentId;
+    const btn = document.createElement('button');
+    btn.className = 'breadcrumb__item' + (isActive ? ' breadcrumb__item--active' : '');
+    btn.setAttribute('type', 'button');
+    btn.textContent = bin.name;
+    btn.disabled = isActive;
+    if (!isActive) {
+      btn.addEventListener('click', () => {
+        _binPickerParentId = bin.id;
+        renderBinPickerList().catch(console.error);
+      });
+    }
+    breadcrumb.appendChild(btn);
+  }
+
+  breadcrumb.scrollLeft = breadcrumb.scrollWidth;
+
+  // Render bin list
+  const bins = await getByIndex('bins', 'parentId', _binPickerParentId);
+  bins.sort((a, b) => a.name.localeCompare(b.name));
+
+  list.innerHTML = '';
+
+  if (emptyEl) emptyEl.hidden = bins.length > 0;
+
+  for (const bin of bins) {
+    const row = document.createElement('div');
+    row.className = 'picker-row';
+
+    const nameBtn = document.createElement('button');
+    nameBtn.className = 'picker-row__name';
+    nameBtn.setAttribute('type', 'button');
+    nameBtn.textContent = bin.name;
+    nameBtn.addEventListener('click', () => {
+      if (_binPickerCallback) {
+        closeBinPicker();
+        _binPickerCallback(bin.id);
+      }
+    });
+
+    const drillBtn = document.createElement('button');
+    drillBtn.className = 'picker-row__drill';
+    drillBtn.setAttribute('type', 'button');
+    drillBtn.setAttribute('aria-label', `Browse ${bin.name}`);
+    drillBtn.innerHTML = SVG_CHEVRON;
+    drillBtn.addEventListener('click', () => {
+      _binPickerParentId = bin.id;
+      renderBinPickerList().catch(console.error);
+    });
+
+    row.appendChild(nameBtn);
+    row.appendChild(drillBtn);
+    list.appendChild(row);
+  }
+}
+
+function selectCurrentPickerLevel(): void {
+  if (_binPickerCallback) {
+    closeBinPicker();
+    _binPickerCallback(_binPickerParentId);
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+
+let _toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function showToast(message: string): void {
+  // Remove any existing toast
+  document.getElementById('toast')?.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'toast';
+  toast.className = 'toast';
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+  toast.textContent = message;
+  document.getElementById('app-shell')?.appendChild(toast);
+
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => {
+    toast.remove();
+    _toastTimer = null;
+  }, 3000);
+}
+
 // ── Modal wiring ──────────────────────────────────────────────
 
 function wireItemModals(): void {
@@ -356,6 +810,33 @@ function wireItemModals(): void {
     ?.addEventListener('click', () =>
       confirmDeleteItem().catch(console.error),
     );
+
+  // Item detail modal
+  document
+    .getElementById('item-detail-close')
+    ?.addEventListener('click', closeItemDetail);
+  document
+    .getElementById('item-detail-overlay')
+    ?.addEventListener('click', closeItemDetail);
+
+  // Bin picker modal
+  document
+    .getElementById('bin-picker-close')
+    ?.addEventListener('click', closeBinPicker);
+  document
+    .getElementById('bin-picker-overlay')
+    ?.addEventListener('click', closeBinPicker);
+  document
+    .getElementById('bin-picker-select-current')
+    ?.addEventListener('click', selectCurrentPickerLevel);
+  document
+    .getElementById('bin-picker-orphan')
+    ?.addEventListener('click', () => {
+      if (_binPickerCallback) {
+        closeBinPicker();
+        _binPickerCallback(null);
+      }
+    });
 }
 
 // ── Inline SVG snippets ───────────────────────────────────────
@@ -365,3 +846,5 @@ const SVG_ITEM = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill=
 const SVG_PENCIL = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 
 const SVG_TRASH = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+
+const SVG_CHEVRON = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;

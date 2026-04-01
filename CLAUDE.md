@@ -32,13 +32,14 @@ Both are stored in IndexedDB with indexes on `parentId`/`binId` and `updatedAt` 
   - Handles null-value queries specially: IndexedDB doesn't index nulls, so we filter in-memory
   - `_resetDB()` used only in tests
 
-- **`src/types.ts`** — Shared TypeScript interfaces (`Bin`, `Item`, `StoreName`, generic `StoreRecord<T>`)
+- **`src/types.ts`** — Shared TypeScript interfaces (`Bin`, `Item`, `LocationHistoryEntry`, `StoreName`, generic `StoreRecord<T>`)
   - Re-exports db types so consumers import from one location
 
 - **`src/app.ts`** — Application shell and navigation
   - Route system: 'home' | 'bins' | 'search' | 'orphans'
-  - `navigate(route)` — shows/hides views, updates nav state, moves focus for a11y
-  - `init()` — checks install gate, opens DB, sets up nav, initializes bins view
+  - `navigate(route)` — shows/hides views, updates nav state, moves focus for a11y; refreshes recent items on home
+  - `init()` — checks install gate, opens DB, sets up nav, initializes bins/search, wires navigation callbacks
+  - `renderRecentItems()` — shows 5 most recently viewed/moved items on the home screen
   - `showUpdateBanner()` — PWA update prompt
 
 - **`src/bins.ts`** — Bins feature (Milestone 2)
@@ -48,13 +49,26 @@ Both are stored in IndexedDB with indexes on `parentId`/`binId` and `updatedAt` 
   - Delete cascades orphaning, not cascade-deleting: child bins get `parentId=null`, child items get `binId=null`
   - Integrates with items module to render item lists in bin detail view
 
-- **`src/items.ts`** — Items feature (Milestone 3)
-  - `createItem()`, `updateItem()`, `assignItemToBin()`, `deleteItem()` — business logic
+- **`src/items.ts`** — Items feature (Milestone 3 + 4)
+  - `createItem()`, `updateItem()`, `assignItemToBin()`, `deleteItem()` — CRUD business logic
+  - `moveItem(itemId, binId)` — moves item to new bin, records location history entry
   - `getItemsInBin()`, `getOrphanedItems()` — data retrieval
-  - `initItems()` — wires up item modals and event handlers
-  - `renderItemsForBin(binId)` — displays items in bin detail view
-  - `openItemModal(item)` — public function for opening create/edit modal
-  - Item validation: name 1–128 chars (required), description optional, binId optional (orphaned if null)
+  - `getLocationPath(binId)` — builds full ancestor path from root to given bin
+  - `getMostLikelyBins(item)` — computes top 3 bins by frequency from location history
+  - `trackRecentAccess(itemId)`, `getRecentItemIds()`, `getRecentItems()` — recently accessed items (localStorage)
+  - `makeItemCard(item)` — creates clickable item card that opens item detail modal
+  - `openItemModal(item)` — create/edit modal
+  - `showToast(message)` — temporary notification
+  - Item detail modal: shows location breadcrumb, move button, location history, most likely locations
+  - Bin picker modal: navigable bin tree for selecting move destination
+  - Navigation callbacks (`setNavigateCallback`, `setNavigateToBinCallback`) to avoid circular imports
+
+- **`src/search.ts`** — Search feature (Milestone 4)
+  - `performSearch(query)` — client-side filtering of items and bins by name (case-insensitive)
+  - `initSearch()` — wires search input with 150ms debounce
+  - `setSearchNavCallbacks()` — navigation callbacks to avoid circular imports
+  - Search results show items with location paths, bins with type indicator
+  - Prefix matches sort before substring matches
 
 - **`src/install.ts`** — PWA installation gate
   - Detects standalone mode; shows install splash if browser PWA prompt is available
@@ -87,9 +101,10 @@ Both are stored in IndexedDB with indexes on `parentId`/`binId` and `updatedAt` 
 **Test locations:**
 - `tests/db.test.ts` — 23 tests for db layer (no DOM)
 - `tests/bins.test.ts` — 28 tests for bins business logic (no DOM)
-- `tests/items.test.ts` — 37 tests for items business logic (no DOM)
+- `tests/items.test.ts` — 59 tests for items business logic including move, history, recent (no DOM)
+- `tests/search.test.ts` — 9 tests for search logic (no DOM)
 - `tests/install.test.ts` — 16 tests for install detection and navigation
-- **Total: 104 tests** covering all business logic and data layer
+- **Total: 135 tests** covering all business logic and data layer
 
 ## Development Workflow
 
@@ -122,9 +137,11 @@ Both are stored in IndexedDB with indexes on `parentId`/`binId` and `updatedAt` 
 - ✅ M1: Core Shell & Offline Infrastructure
 - ✅ M2: Storage Bins (completed 2026-04-01)
 - ✅ M3: Object Inventory (completed 2026-04-01)
-- ⏳ M4: Object Lookup & Movement
+- ✅ M4: Object Lookup & Movement (completed 2026-04-01)
 - ⏳ M5: Swipe-to-Inventory
 - ⏳ M6: Orphaned Objects Management
 - ⏳ M7: Polish & Hardening
 
 **M3 recap:** `src/items.ts` module exports CRUD functions for items (create, edit, assign, delete). Items can be assigned to bins or orphaned. Bin detail view shows item list with edit/delete buttons. Two new modals: `#item-modal` (create/edit), `#delete-item-modal` (confirm). 37 comprehensive unit tests covering all item operations.
+
+**M4 recap:** `src/search.ts` provides global search across items and bins with debounced real-time filtering. `src/items.ts` extended with: `moveItem()` that updates binId and records location history (last 10 entries with timestamps); `getLocationPath()` builds full ancestor breadcrumb; `getMostLikelyBins()` computes most frequent locations from history; recently accessed items tracked in localStorage (5 items, shown on home screen). New modals: `#item-detail-modal` (view item with location, history, move/edit/delete actions), `#bin-picker-modal` (navigable bin tree for move destination). Toast notifications for move confirmation. Uses callback pattern (`setNavigateCallback`, `setNavigateToBinCallback`, `setSearchNavCallbacks`) to avoid circular imports between modules. 31 new tests (22 in items, 9 in search).

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { getById, put } from '../src/db';
 import type { Item, Bin } from '../src/db';
 import {
@@ -8,6 +8,12 @@ import {
   deleteItem,
   getItemsInBin,
   getOrphanedItems,
+  moveItem,
+  getLocationPath,
+  getMostLikelyBins,
+  trackRecentAccess,
+  getRecentItemIds,
+  getRecentItems,
 } from '../src/items';
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -329,5 +335,231 @@ describe('getOrphanedItems', () => {
     expect(orphans[0].id).toBe(a.id);
     expect(orphans[1].id).toBe(b.id);
     expect(orphans[2].id).toBe(c.id);
+  });
+});
+
+// ── moveItem ─────────────────────────────────────────────────
+
+describe('moveItem', () => {
+  it('moves an item to a new bin', async () => {
+    const bin1 = await seedBin({ name: 'Bin A' });
+    const bin2 = await seedBin({ name: 'Bin B' });
+    const item = await seedItem({ binId: bin1.id });
+    const moved = await moveItem(item.id, bin2.id);
+    expect(moved.binId).toBe(bin2.id);
+    const stored = await getById('items', item.id);
+    expect(stored?.binId).toBe(bin2.id);
+  });
+
+  it('orphans an item when moving to null', async () => {
+    const bin = await seedBin({ name: 'Bin A' });
+    const item = await seedItem({ binId: bin.id });
+    const moved = await moveItem(item.id, null);
+    expect(moved.binId).toBeNull();
+  });
+
+  it('records a location history entry', async () => {
+    const bin = await seedBin({ name: 'Garage' });
+    const item = await seedItem({ binId: null });
+    const moved = await moveItem(item.id, bin.id);
+    expect(moved.locationHistory).toHaveLength(1);
+    expect(moved.locationHistory![0].binId).toBe(bin.id);
+    expect(moved.locationHistory![0].binName).toBe('Garage');
+    expect(moved.locationHistory![0].movedAt).toBeTruthy();
+  });
+
+  it('records "Unhoused" when moving to null', async () => {
+    const bin = await seedBin({ name: 'Bin A' });
+    const item = await seedItem({ binId: bin.id });
+    const moved = await moveItem(item.id, null);
+    expect(moved.locationHistory![0].binName).toBe('Unhoused');
+    expect(moved.locationHistory![0].binId).toBeNull();
+  });
+
+  it('keeps newest entries first in history', async () => {
+    const bin1 = await seedBin({ name: 'First' });
+    const bin2 = await seedBin({ name: 'Second' });
+    const item = await seedItem({ binId: null });
+    await moveItem(item.id, bin1.id);
+    const final = await moveItem(item.id, bin2.id);
+    expect(final.locationHistory).toHaveLength(2);
+    expect(final.locationHistory![0].binName).toBe('Second');
+    expect(final.locationHistory![1].binName).toBe('First');
+  });
+
+  it('limits history to 10 entries', async () => {
+    const bins = await Promise.all(
+      Array.from({ length: 11 }, (_, i) =>
+        seedBin({ name: `Bin ${i}` }),
+      ),
+    );
+    const item = await seedItem({ binId: null });
+    let moved: Item = item;
+    for (const bin of bins) {
+      moved = await moveItem(item.id, bin.id);
+    }
+    expect(moved.locationHistory).toHaveLength(10);
+    // Oldest entry should be dropped
+    expect(moved.locationHistory![9].binName).toBe('Bin 1');
+  });
+
+  it('updates updatedAt timestamp', async () => {
+    const bin = await seedBin();
+    const item = await seedItem({ updatedAt: '2020-01-01T00:00:00Z' });
+    const moved = await moveItem(item.id, bin.id);
+    expect(moved.updatedAt).not.toBe('2020-01-01T00:00:00Z');
+  });
+
+  it('throws when item not found', async () => {
+    await expect(moveItem('nonexistent', null)).rejects.toThrow(
+      'Item not found.',
+    );
+  });
+});
+
+// ── getLocationPath ──────────────────────────────────────────
+
+describe('getLocationPath', () => {
+  it('returns empty array for null binId', async () => {
+    const path = await getLocationPath(null);
+    expect(path).toEqual([]);
+  });
+
+  it('returns single entry for top-level bin', async () => {
+    const bin = await seedBin({ name: 'House' });
+    const path = await getLocationPath(bin.id);
+    expect(path).toHaveLength(1);
+    expect(path[0]).toEqual({ id: bin.id, name: 'House' });
+  });
+
+  it('returns full path from root to leaf', async () => {
+    const house = await seedBin({ name: 'House' });
+    const bedroom = await seedBin({ name: 'Bedroom', parentId: house.id });
+    const wardrobe = await seedBin({ name: 'Wardrobe', parentId: bedroom.id });
+    const path = await getLocationPath(wardrobe.id);
+    expect(path).toHaveLength(3);
+    expect(path[0].name).toBe('House');
+    expect(path[1].name).toBe('Bedroom');
+    expect(path[2].name).toBe('Wardrobe');
+  });
+
+  it('returns empty for nonexistent bin', async () => {
+    const path = await getLocationPath('nonexistent');
+    expect(path).toEqual([]);
+  });
+});
+
+// ── getMostLikelyBins ────────────────────────────────────────
+
+describe('getMostLikelyBins', () => {
+  it('returns empty for item with no history', async () => {
+    const item = await seedItem();
+    const likely = getMostLikelyBins(item);
+    expect(likely).toEqual([]);
+  });
+
+  it('returns bins sorted by frequency', async () => {
+    const item = await seedItem({
+      locationHistory: [
+        { binId: 'a', binName: 'A', movedAt: '2026-01-01T00:00:00Z' },
+        { binId: 'b', binName: 'B', movedAt: '2026-01-02T00:00:00Z' },
+        { binId: 'a', binName: 'A', movedAt: '2026-01-03T00:00:00Z' },
+        { binId: 'b', binName: 'B', movedAt: '2026-01-04T00:00:00Z' },
+        { binId: 'a', binName: 'A', movedAt: '2026-01-05T00:00:00Z' },
+      ],
+    });
+    const likely = getMostLikelyBins(item);
+    expect(likely).toHaveLength(2);
+    expect(likely[0].binId).toBe('a');
+    expect(likely[0].count).toBe(3);
+    expect(likely[1].binId).toBe('b');
+    expect(likely[1].count).toBe(2);
+  });
+
+  it('excludes null binId (unhoused) entries', async () => {
+    const item = await seedItem({
+      locationHistory: [
+        { binId: null, binName: 'Unhoused', movedAt: '2026-01-01T00:00:00Z' },
+        { binId: 'a', binName: 'A', movedAt: '2026-01-02T00:00:00Z' },
+      ],
+    });
+    const likely = getMostLikelyBins(item);
+    expect(likely).toHaveLength(1);
+    expect(likely[0].binId).toBe('a');
+  });
+
+  it('limits to 3 results', async () => {
+    const item = await seedItem({
+      locationHistory: [
+        { binId: 'a', binName: 'A', movedAt: '2026-01-01T00:00:00Z' },
+        { binId: 'b', binName: 'B', movedAt: '2026-01-02T00:00:00Z' },
+        { binId: 'c', binName: 'C', movedAt: '2026-01-03T00:00:00Z' },
+        { binId: 'd', binName: 'D', movedAt: '2026-01-04T00:00:00Z' },
+      ],
+    });
+    const likely = getMostLikelyBins(item);
+    expect(likely.length).toBeLessThanOrEqual(3);
+  });
+});
+
+// ── Recent items tracking ────────────────────────────────────
+
+describe('trackRecentAccess / getRecentItemIds', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('tracks a single item', () => {
+    trackRecentAccess('item-1');
+    expect(getRecentItemIds()).toEqual(['item-1']);
+  });
+
+  it('keeps newest first', () => {
+    trackRecentAccess('item-1');
+    trackRecentAccess('item-2');
+    expect(getRecentItemIds()).toEqual(['item-2', 'item-1']);
+  });
+
+  it('deduplicates, moving to front', () => {
+    trackRecentAccess('item-1');
+    trackRecentAccess('item-2');
+    trackRecentAccess('item-1');
+    expect(getRecentItemIds()).toEqual(['item-1', 'item-2']);
+  });
+
+  it('limits to 5 items', () => {
+    for (let i = 1; i <= 7; i++) {
+      trackRecentAccess(`item-${i}`);
+    }
+    const ids = getRecentItemIds();
+    expect(ids).toHaveLength(5);
+    expect(ids[0]).toBe('item-7');
+    expect(ids[4]).toBe('item-3');
+  });
+});
+
+describe('getRecentItems', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns full item records for tracked IDs', async () => {
+    const item1 = await seedItem({ name: 'A' });
+    const item2 = await seedItem({ name: 'B' });
+    trackRecentAccess(item1.id);
+    trackRecentAccess(item2.id);
+    const recent = await getRecentItems();
+    expect(recent).toHaveLength(2);
+    expect(recent[0].id).toBe(item2.id);
+    expect(recent[1].id).toBe(item1.id);
+  });
+
+  it('skips deleted items', async () => {
+    const item = await seedItem({ name: 'A' });
+    trackRecentAccess(item.id);
+    trackRecentAccess('deleted-id');
+    const recent = await getRecentItems();
+    expect(recent).toHaveLength(1);
+    expect(recent[0].id).toBe(item.id);
   });
 });

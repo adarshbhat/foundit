@@ -1,6 +1,16 @@
 import { applyInstallGate } from './install';
 import { openDB } from './db';
 import { initBins } from './bins';
+import { initSearch, setSearchNavCallbacks } from './search';
+import {
+  getRecentItems,
+  getLocationPath,
+  makeItemCard,
+  setItemDetailCloseCallback,
+  setNavigateToBinCallback,
+  setNavigateCallback,
+} from './items';
+import { navigateToBin } from './bins';
 
 export type Route = 'home' | 'bins' | 'search' | 'orphans';
 
@@ -43,6 +53,11 @@ export function navigate(route: Route): void {
     heading.setAttribute('tabindex', '-1');
     heading.focus({ preventScroll: true });
   }
+
+  // Refresh recent items when navigating to home
+  if (route === 'home') {
+    renderRecentItems().catch(console.error);
+  }
 }
 
 /** Wire bottom-nav click handlers and navigate to the initial route. */
@@ -55,6 +70,44 @@ export function setupNavigation(): void {
   });
 
   navigate('home');
+}
+
+// ─── Recent items ────────────────────────────────────────────────────────────
+
+async function renderRecentItems(): Promise<void> {
+  const section = document.getElementById('recent-items');
+  const list = document.getElementById('recent-items-list');
+  const emptyEl = document.getElementById('home-empty');
+  if (!section || !list) return;
+
+  const items = await getRecentItems();
+
+  list.innerHTML = '';
+
+  if (items.length === 0) {
+    section.hidden = true;
+    if (emptyEl) emptyEl.hidden = false;
+    return;
+  }
+
+  section.hidden = false;
+  if (emptyEl) emptyEl.hidden = true;
+
+  for (const item of items) {
+    const card = makeItemCard(item);
+    // Add location path below the name
+    const body = card.querySelector('.item-card__body');
+    if (body) {
+      const path = await getLocationPath(item.binId);
+      const locEl = document.createElement('div');
+      locEl.className = 'item-card__location text-muted text-sm';
+      locEl.textContent = path.length > 0
+        ? path.map((p) => p.name).join(' → ')
+        : 'Unhoused';
+      body.appendChild(locEl);
+    }
+    list.appendChild(card);
+  }
 }
 
 // ─── Initialisation ───────────────────────────────────────────────────────────
@@ -72,5 +125,25 @@ export async function init(): Promise<boolean> {
   await openDB();
   setupNavigation();
   initBins(); // This also initializes items via initItems()
+  initSearch();
+
+  // Wire navigation callbacks to avoid circular imports
+  setNavigateCallback((route) => navigate(route as Route));
+  setNavigateToBinCallback((binId) =>
+    navigateToBin(binId).catch(console.error),
+  );
+  setSearchNavCallbacks(
+    (route) => navigate(route as Route),
+    (binId) => navigateToBin(binId).catch(console.error),
+  );
+
+  // Refresh recent items when item detail is closed (after move/edit/delete)
+  setItemDetailCloseCallback(() => {
+    renderRecentItems().catch(console.error);
+  });
+
+  // Render recent items on initial load
+  await renderRecentItems();
+
   return true;
 }
