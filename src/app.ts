@@ -71,6 +71,6 @@ export async function init(): Promise<boolean> {
 
   await openDB();
   setupNavigation();
-  initBins();
+  initBins(); // This also initializes items via initItems()
   return true;
 }

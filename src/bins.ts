@@ -1,5 +1,11 @@
 import { getById, getByIndex, put, deleteById } from './db';
 import type { Bin } from './types';
+import {
+  renderItemsForBin,
+  clearItemList,
+  initItems,
+  openItemModal as openItem,
+} from './items';
 
 // ── Module state ──────────────────────────────────────────────
 
@@ -103,6 +109,8 @@ export async function isDescendantOf(
 
 /** Bootstrap the bins view. Call once after the DOM is ready. */
 export function initBins(): void {
+  initItems();
+
   document
     .getElementById('add-bin-btn')
     ?.addEventListener('click', () => openBinModal(null));
@@ -122,6 +130,43 @@ export function initBins(): void {
 export async function navigateToBin(binId: string | null): Promise<void> {
   currentParentId = binId;
   await renderBinView();
+
+  // Show item list if we're inside a bin, hide it at root level
+  const binDetail = document.getElementById('bin-detail');
+  const binList = document.getElementById('bin-list');
+  const itemAddBtn = document.getElementById('add-item-btn');
+
+  if (binId) {
+    // Show bin detail view with items
+    if (binDetail) binDetail.hidden = false;
+    if (binList) binList.hidden = true;
+
+    // Update bin detail title
+    const bin = await getById('bins', binId);
+    const titleEl = document.getElementById('bin-detail-title');
+    if (titleEl && bin) titleEl.textContent = bin.name;
+
+    // Render items for this bin
+    await renderItemsForBin(binId);
+
+    // Check if bin has no child bins and no items to show empty state
+    const childBins = await getByIndex('bins', 'parentId', binId);
+    const items = await getByIndex('items', 'binId', binId);
+    const emptyEl = document.getElementById('bin-detail-empty');
+    if (emptyEl) {
+      emptyEl.hidden = childBins.length > 0 || items.length > 0;
+    }
+
+    // Wire the add item button
+    if (itemAddBtn) {
+      itemAddBtn.onclick = () => openItem(null);
+    }
+  } else {
+    // Show bin list at root level
+    if (binDetail) binDetail.hidden = true;
+    if (binList) binList.hidden = false;
+    clearItemList();
+  }
 }
 
 // ── Rendering ──────────────────────────────────────────────────

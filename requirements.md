@@ -7,12 +7,12 @@ An offline Progressive Web App (PWA) that runs in a phone's browser and helps us
 ## Table of Contents
 
 1. [Milestone 1 — MVP: Core Shell & Offline Infrastructure](#milestone-1)
-1. [Milestone 3 — Storage Bins](#milestone-2)
-1. [Milestone 4 — Object Inventory](#milestone-3)
-1. [Milestone 5 — Object Lookup & Movement](#milestone-4)
-1. [Milestone 6 — Swipe-to-Inventory](#milestone-5)
-1. [Milestone 7 — Orphaned Objects Management](#milestone-6)
-1. [Milestone 8 — Polish & Hardening](#milestone-7)
+1. [Milestone 2 — Storage Bins](#milestone-2)
+1. [Milestone 3 — Object Inventory](#milestone-3)
+1. [Milestone 4 — Object Lookup & Movement](#milestone-4)
+1. [Milestone 5 — Swipe-to-Inventory](#milestone-5)
+1. [Milestone 6 — Orphaned Objects Management](#milestone-6)
+1. [Milestone 7 — Polish & Hardening](#milestone-7)
 
 ---
 
