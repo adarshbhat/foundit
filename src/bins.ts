@@ -113,7 +113,7 @@ export function initBins(): void {
 
   document
     .getElementById('add-bin-btn')
-    ?.addEventListener('click', () => openBinModal(null));
+    ?.addEventListener('click', openAddChoiceModal);
 
   // Re-render whenever the user navigates back to the Bins tab
   document
@@ -134,8 +134,6 @@ export async function navigateToBin(binId: string | null): Promise<void> {
   // Show item list if we're inside a bin, hide it at root level
   const binDetail = document.getElementById('bin-detail');
   const binList = document.getElementById('bin-list');
-  const itemAddBtn = document.getElementById('add-item-btn');
-
   if (binId) {
     // Show bin detail view with items and child bins
     if (binDetail) binDetail.hidden = false;
@@ -168,10 +166,6 @@ export async function navigateToBin(binId: string | null): Promise<void> {
       emptyEl.hidden = childBins.length > 0 || items.length > 0;
     }
 
-    // Wire the add item button
-    if (itemAddBtn) {
-      itemAddBtn.onclick = () => openItem(null);
-    }
   } else {
     // Show bin list at root level
     if (binDetail) binDetail.hidden = true;
@@ -478,9 +472,41 @@ async function confirmDelete(): Promise<void> {
   await renderBinView();
 }
 
+// ── Add choice modal ───────────────────────────────────────────
+
+function openAddChoiceModal(): void {
+  const modal = document.getElementById('add-choice-modal');
+  if (modal) modal.hidden = false;
+}
+
+function closeAddChoiceModal(): void {
+  const modal = document.getElementById('add-choice-modal');
+  if (modal) modal.hidden = true;
+}
+
 // ── Modal wiring ───────────────────────────────────────────────
 
 function wireModals(): void {
+  // Add choice modal
+  document
+    .getElementById('add-choice-close')
+    ?.addEventListener('click', closeAddChoiceModal);
+  document
+    .getElementById('add-choice-overlay')
+    ?.addEventListener('click', closeAddChoiceModal);
+  document
+    .getElementById('add-choice-bin')
+    ?.addEventListener('click', () => {
+      closeAddChoiceModal();
+      openBinModal(null);
+    });
+  document
+    .getElementById('add-choice-item')
+    ?.addEventListener('click', () => {
+      closeAddChoiceModal();
+      openItem(null);
+    });
+
   // Bin name modal
   document
     .getElementById('bin-modal-cancel')

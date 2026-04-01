@@ -103,12 +103,6 @@
             <div id="bin-detail" class="bin-detail" hidden>
               <div class="bin-detail__header">
                 <h2 id="bin-detail-title" class="bin-detail__title"></h2>
-                <button class="view-header__action" type="button" id="add-item-btn" aria-label="Add item">
-                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                </button>
               </div>
               <div id="child-bin-list" class="item-list">
                 <!-- Child bins populated in Milestone 3 -->
@@ -263,6 +257,25 @@
           <div class="modal__footer">
             <button id="delete-item-modal-cancel" class="btn btn--ghost" type="button">Cancel</button>
             <button id="delete-item-modal-confirm" class="btn btn--danger" type="button">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Add choice modal (bin vs object) ── -->
+      <div id="add-choice-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="add-choice-title">
+        <div id="add-choice-overlay" class="modal__overlay"></div>
+        <div class="modal__sheet">
+          <div class="modal__header">
+            <h2 id="add-choice-title" class="modal__title">Add New</h2>
+            <button id="add-choice-close" class="modal__close" type="button" aria-label="Close">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="modal__footer">
+            <button id="add-choice-bin" class="btn btn--ghost" type="button">New Bin</button>
+            <button id="add-choice-item" class="btn btn--primary" type="button">New Object</button>
           </div>
         </div>
       </div>
