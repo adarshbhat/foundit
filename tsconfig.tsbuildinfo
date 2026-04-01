@@ -1,1 +1,1 @@
-{"root":["./src/app.ts","./src/db.ts","./src/install.ts","./src/main.ts","./src/types.ts","./src/vite-env.d.ts","./tests/db.test.ts","./tests/install.test.ts","./tests/setup.ts","./vite.config.ts","./vitest.config.ts"],"version":"5.9.3"}
+{"root":["./src/app.ts","./src/bins.ts","./src/db.ts","./src/install.ts","./src/main.ts","./src/types.ts","./src/vite-env.d.ts","./tests/bins.test.ts","./tests/db.test.ts","./tests/install.test.ts","./tests/setup.ts","./vite.config.ts","./vitest.config.ts"],"version":"5.9.3"}

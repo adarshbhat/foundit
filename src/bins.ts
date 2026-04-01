@@ -92,7 +92,7 @@ export async function isDescendantOf(
   let current: string | null = binId;
   while (current !== null) {
     if (current === ancestorId) return true;
-    const bin = await getById('bins', current);
+    const bin: Bin | null = await getById('bins', current);
     if (!bin) return false;
     current = bin.parentId;
   }
