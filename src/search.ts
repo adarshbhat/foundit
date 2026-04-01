@@ -81,6 +81,7 @@ async function renderSearchResults(results: SearchResult[]): Promise<void> {
   for (const result of results) {
     if (result.type === 'item') {
       const card = makeItemCard(result.record as Item);
+      card.querySelector('.bin-card__actions')?.remove();
       // Add location path below the item name
       const body = card.querySelector('.item-card__body');
       if (body) {
