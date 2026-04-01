@@ -330,33 +330,6 @@ export function makeItemCard(item: Item): HTMLElement {
   body.appendChild(nameEl);
   if (item.description) body.appendChild(descEl);
 
-  // Action buttons (edit, delete)
-  const actions = document.createElement('div');
-  actions.className = 'bin-card__actions';
-
-  const editBtn = document.createElement('button');
-  editBtn.className = 'bin-card__action-btn';
-  editBtn.setAttribute('type', 'button');
-  editBtn.setAttribute('aria-label', `Edit ${item.name}`);
-  editBtn.innerHTML = SVG_PENCIL;
-  editBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openItemModal(item);
-  });
-
-  const deleteBtn = document.createElement('button');
-  deleteBtn.className = 'bin-card__action-btn bin-card__action-btn--danger';
-  deleteBtn.setAttribute('type', 'button');
-  deleteBtn.setAttribute('aria-label', `Delete ${item.name}`);
-  deleteBtn.innerHTML = SVG_TRASH;
-  deleteBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openDeleteItemModal(item).catch(console.error);
-  });
-
-  actions.appendChild(editBtn);
-  actions.appendChild(deleteBtn);
-
   // Chevron
   const chevron = document.createElement('span');
   chevron.className = 'item-card__chevron';
@@ -365,7 +338,6 @@ export function makeItemCard(item: Item): HTMLElement {
 
   card.appendChild(iconEl);
   card.appendChild(body);
-  card.appendChild(actions);
   card.appendChild(chevron);
 
   return card;
@@ -842,9 +814,5 @@ function wireItemModals(): void {
 // ── Inline SVG snippets ───────────────────────────────────────
 
 const SVG_ITEM = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6-8 6 8"/><path d="M6 9h12v12a2 2 0 01-2 2H8a2 2 0 01-2-2V9z"/></svg>`;
-
-const SVG_PENCIL = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-
-const SVG_TRASH = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
 
 const SVG_CHEVRON = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
