@@ -1,5 +1,6 @@
 import { getById, getByIndex, put, deleteById } from './db';
 import type { Bin, Item, LocationHistoryEntry } from './types';
+import { emit } from './store';
 
 // ── Business logic ─────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ export async function createItem(
     updatedAt: now,
   };
   await put('items', item);
+  emit('items-changed');
   return item;
 }
 
@@ -57,6 +59,7 @@ export async function updateItem(
     description: trimmedDesc,
     updatedAt: new Date().toISOString(),
   });
+  emit('items-changed');
 }
 
 /**
@@ -75,6 +78,7 @@ export async function assignItemToBin(
     binId,
     updatedAt: new Date().toISOString(),
   });
+  emit('items-changed');
 }
 
 /**
@@ -85,6 +89,7 @@ export async function deleteItem(id: string): Promise<void> {
   const item = await getById('items', id);
   if (!item) throw new Error('Item not found.');
   await deleteById('items', id);
+  emit('items-changed');
 }
 
 /**
@@ -138,6 +143,7 @@ export async function moveItem(
     updatedAt: new Date().toISOString(),
   };
   await put('items', updated);
+  emit('items-changed');
   return updated;
 }
 
@@ -402,9 +408,7 @@ async function submitItemModal(): Promise<void> {
       await createItem(nameInput.value, descInput.value, _currentBinId);
     }
     closeItemModal();
-    if (_currentBinId) {
-      await renderItemsForBin(_currentBinId);
-    }
+    // Re-render is handled by the store's items-changed event
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Something went wrong.';
@@ -442,22 +446,12 @@ async function confirmDeleteItem(): Promise<void> {
 
   await deleteItem(item.id);
   closeDeleteItemModal();
-
-  if (_currentBinId) {
-    await renderItemsForBin(_currentBinId);
-  }
+  // Re-render is handled by the store's items-changed event
 }
 
 // ── Item detail modal ─────────────────────────────────────────
 
-/** Callback when the item detail modal needs to trigger a re-render (e.g. after move). */
-let _onItemDetailClose: (() => void) | null = null;
-
-export function setItemDetailCloseCallback(cb: () => void): void {
-  _onItemDetailClose = cb;
-}
-
-/** Callback to navigate to a specific bin (set by bins module to avoid circular import). */
+/** Callback to navigate to a specific bin (set by app to avoid circular import). */
 let _navigateToBinCallback: ((binId: string) => void) | null = null;
 
 export function setNavigateToBinCallback(
@@ -466,7 +460,7 @@ export function setNavigateToBinCallback(
   _navigateToBinCallback = cb;
 }
 
-/** Callback to change the active view/route (set by app module to avoid circular import). */
+/** Callback to change the active view/route (set by app to avoid circular import). */
 let _navigateCallback: ((route: string) => void) | null = null;
 
 export function setNavigateCallback(cb: (route: string) => void): void {
@@ -575,8 +569,7 @@ async function openItemDetail(item: Item): Promise<void> {
     openBinPicker(async (binId) => {
       const updated = await moveItem(item.id, binId);
       showToast(`Moved to ${updated.binId ? (await getById('bins', updated.binId))?.name ?? 'bin' : 'Unhoused'}`);
-      if (_currentBinId) await renderItemsForBin(_currentBinId);
-      _onItemDetailClose?.();
+      // All view refreshes are handled by the store's items-changed event
     });
   });
 

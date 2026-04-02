@@ -35,23 +35,33 @@ Both are stored in IndexedDB with indexes on `parentId`/`binId` and `updatedAt` 
 - **`src/types.ts`** — Shared TypeScript interfaces (`Bin`, `Item`, `LocationHistoryEntry`, `StoreName`, generic `StoreRecord<T>`)
   - Re-exports db types so consumers import from one location
 
-- **`src/app.ts`** — Application shell and navigation
+- **`src/store.ts`** — Lightweight pub/sub event bus for data-change notifications
+  - Events: `items-changed`, `bins-changed`
+  - `on(event, listener)` — subscribe; returns unsubscribe function
+  - `emit(event)` — notify all subscribers
+  - All mutations in items.ts and bins.ts call `emit()` after DB writes
+  - `_resetListeners()` — for tests
+
+- **`src/app.ts`** — Application shell, navigation, and store subscriptions
   - Route system: 'home' | 'bins' | 'search' | 'orphans'
-  - `navigate(route)` — shows/hides views, updates nav state, moves focus for a11y; refreshes recent items on home
-  - `init()` — checks install gate, opens DB, sets up nav, initializes bins/search, wires navigation callbacks
+  - `navigate(route)` — shows/hides views, updates nav state, moves focus for a11y, flushes dirty views
+  - `init()` — checks install gate, opens DB, sets up nav, initializes all modules, subscribes to store events
   - `renderRecentItems()` — shows 5 most recently viewed/moved items on the home screen
   - `showUpdateBanner()` — PWA update prompt
+  - Store subscriptions: on `items-changed` refreshes home/bins/search; on `bins-changed` refreshes bins/search
+  - Dirty-flag pattern: hidden views are marked dirty and re-rendered when they become visible
 
 - **`src/bins.ts`** — Bins feature (Milestone 2)
-  - `createBin()`, `renameBin()`, `deleteBin()`, `isDescendantOf()` — business logic
+  - `createBin()`, `renameBin()`, `deleteBin()`, `isDescendantOf()` — business logic (all emit `bins-changed`)
   - `initBins()` — renders the bins tree on app launch
   - `navigateToBin(binId)` — switches to a specific bin's detail view
+  - `refreshBinsView()` — re-renders current bin level; called by store subscriptions
   - Delete cascades orphaning, not cascade-deleting: child bins get `parentId=null`, child items get `binId=null`
   - Integrates with items module to render item lists in bin detail view
 
 - **`src/items.ts`** — Items feature (Milestone 3 + 4)
-  - `createItem()`, `updateItem()`, `assignItemToBin()`, `deleteItem()` — CRUD business logic
-  - `moveItem(itemId, binId)` — moves item to new bin, records location history entry
+  - `createItem()`, `updateItem()`, `assignItemToBin()`, `deleteItem()` — CRUD business logic (all emit `items-changed`)
+  - `moveItem(itemId, binId)` — moves item to new bin, records location history entry, emits `items-changed`
   - `getItemsInBin()`, `getOrphanedItems()` — data retrieval
   - `getLocationPath(binId)` — builds full ancestor path from root to given bin
   - `getMostLikelyBins(item)` — computes top 3 bins by frequency from location history
@@ -61,12 +71,13 @@ Both are stored in IndexedDB with indexes on `parentId`/`binId` and `updatedAt` 
   - `showToast(message)` — temporary notification
   - Item detail modal: shows location breadcrumb, move button, location history, most likely locations
   - Bin picker modal: navigable bin tree for selecting move destination
-  - Navigation callbacks (`setNavigateCallback`, `setNavigateToBinCallback`) to avoid circular imports
+  - Navigation callbacks (`setNavigateCallback`, `setNavigateToBinCallback`) for cross-module navigation
 
 - **`src/search.ts`** — Search feature (Milestone 4)
   - `performSearch(query)` — client-side filtering of items and bins by name (case-insensitive)
   - `initSearch()` — wires search input with 150ms debounce
-  - `setSearchNavCallbacks()` — navigation callbacks to avoid circular imports
+  - `refreshSearch()` — re-runs current query; called by store subscriptions
+  - `setSearchGoToBin()` — navigation callback for cross-module navigation
   - Search results show items with location paths, bins with type indicator
   - Prefix matches sort before substring matches
 
@@ -103,8 +114,9 @@ Both are stored in IndexedDB with indexes on `parentId`/`binId` and `updatedAt` 
 - `tests/bins.test.ts` — 28 tests for bins business logic (no DOM)
 - `tests/items.test.ts` — 59 tests for items business logic including move, history, recent (no DOM)
 - `tests/search.test.ts` — 9 tests for search logic (no DOM)
+- `tests/store.test.ts` — 5 tests for the event bus (subscribe, emit, unsubscribe)
 - `tests/install.test.ts` — 16 tests for install detection and navigation
-- **Total: 135 tests** covering all business logic and data layer
+- **Total: 140 tests** covering all business logic and data layer
 
 ## Development Workflow
 

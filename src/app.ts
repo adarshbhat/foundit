@@ -1,18 +1,26 @@
 import { applyInstallGate } from './install';
 import { openDB } from './db';
-import { initBins } from './bins';
-import { initSearch, setSearchNavCallbacks, refreshSearch } from './search';
+import { initBins, refreshBinsView } from './bins';
+import { initSearch, refreshSearch, setSearchGoToBin } from './search';
 import {
   getRecentItems,
   getLocationPath,
   makeItemCard,
-  setItemDetailCloseCallback,
-  setNavigateToBinCallback,
+  initItems,
   setNavigateCallback,
+  setNavigateToBinCallback,
 } from './items';
 import { navigateToBin } from './bins';
+import { on } from './store';
 
 export type Route = 'home' | 'bins' | 'search' | 'orphans';
+
+let _currentRoute: Route = 'home';
+
+/** Get the currently active route. */
+export function currentRoute(): Route {
+  return _currentRoute;
+}
 
 // ─── Update banner ────────────────────────────────────────────────────────────
 
@@ -28,8 +36,16 @@ export function showUpdateBanner(onRefresh: () => void): void {
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
+// Dirty flags — when a view is hidden during a data change, mark it dirty
+// so it re-renders when it becomes visible.
+let _homeDirty = false;
+let _binsDirty = false;
+let _searchDirty = false;
+
 /** Activate a named view and update nav link state. */
 export function navigate(route: Route): void {
+  _currentRoute = route;
+
   // Show/hide views
   document.querySelectorAll<HTMLElement>('[data-view]').forEach((view) => {
     const isActive = view.dataset.view === route;
@@ -54,9 +70,18 @@ export function navigate(route: Route): void {
     heading.focus({ preventScroll: true });
   }
 
-  // Refresh recent items when navigating to home
-  if (route === 'home') {
+  // Flush dirty views when they become visible
+  if (route === 'home' && _homeDirty) {
+    _homeDirty = false;
     renderRecentItems().catch(console.error);
+  }
+  if (route === 'bins' && _binsDirty) {
+    _binsDirty = false;
+    refreshBinsView().catch(console.error);
+  }
+  if (route === 'search' && _searchDirty) {
+    _searchDirty = false;
+    refreshSearch().catch(console.error);
   }
 }
 
@@ -110,6 +135,46 @@ async function renderRecentItems(): Promise<void> {
   }
 }
 
+// ─── Store subscriptions ─────────────────────────────────────────────────────
+
+function setupStoreSubscriptions(): void {
+  // Items changed → refresh visible views or mark dirty
+  on('items-changed', () => {
+    if (_currentRoute === 'home') {
+      renderRecentItems().catch(console.error);
+    } else {
+      _homeDirty = true;
+    }
+
+    if (_currentRoute === 'bins') {
+      refreshBinsView().catch(console.error);
+    } else {
+      _binsDirty = true;
+    }
+
+    if (_currentRoute === 'search') {
+      refreshSearch().catch(console.error);
+    } else {
+      _searchDirty = true;
+    }
+  });
+
+  // Bins changed → refresh visible views or mark dirty
+  on('bins-changed', () => {
+    if (_currentRoute === 'bins') {
+      refreshBinsView().catch(console.error);
+    } else {
+      _binsDirty = true;
+    }
+
+    if (_currentRoute === 'search') {
+      refreshSearch().catch(console.error);
+    } else {
+      _searchDirty = true;
+    }
+  });
+}
+
 // ─── Initialisation ───────────────────────────────────────────────────────────
 
 /**
@@ -124,24 +189,21 @@ export async function init(): Promise<boolean> {
 
   await openDB();
   setupNavigation();
-  initBins(); // This also initializes items via initItems()
+  initBins();
+  initItems();
   initSearch();
 
-  // Wire navigation callbacks to avoid circular imports
+  // Wire navigation callbacks (needed for cross-module navigation without circular imports)
   setNavigateCallback((route) => navigate(route as Route));
   setNavigateToBinCallback((binId) =>
     navigateToBin(binId).catch(console.error),
   );
-  setSearchNavCallbacks(
-    (route) => navigate(route as Route),
-    (binId) => navigateToBin(binId).catch(console.error),
-  );
-
-  // Refresh recent items when item detail is closed (after move/edit/delete)
-  setItemDetailCloseCallback(() => {
-    renderRecentItems().catch(console.error);
-    refreshSearch().catch(console.error);
+  setSearchGoToBin((binId) => {
+    navigate('bins');
+    navigateToBin(binId).catch(console.error);
   });
+
+  setupStoreSubscriptions();
 
   // Render recent items on initial load
   await renderRecentItems();

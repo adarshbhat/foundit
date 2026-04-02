@@ -1,9 +1,9 @@
 import { getById, getByIndex, put, deleteById } from './db';
 import type { Bin } from './types';
+import { emit } from './store';
 import {
   renderItemsForBin,
   clearItemList,
-  initItems,
   openItemModal as openItem,
 } from './items';
 
@@ -36,6 +36,7 @@ export async function createBin(
     updatedAt: now,
   };
   await put('bins', bin);
+  emit('bins-changed');
   return bin;
 }
 
@@ -57,6 +58,7 @@ export async function renameBin(id: string, name: string): Promise<void> {
     name: trimmed,
     updatedAt: new Date().toISOString(),
   });
+  emit('bins-changed');
 }
 
 /**
@@ -85,6 +87,8 @@ export async function deleteBin(id: string): Promise<void> {
   // Delete the bin last so a crash before this point leaves orphans rather
   // than dangling references to a deleted parent.
   await deleteById('bins', id);
+  emit('bins-changed');
+  if (childItems.length > 0) emit('items-changed');
 }
 
 /**
@@ -109,19 +113,17 @@ export async function isDescendantOf(
 
 /** Bootstrap the bins view. Call once after the DOM is ready. */
 export function initBins(): void {
-  initItems();
-
   document
     .getElementById('add-bin-btn')
     ?.addEventListener('click', openAddChoiceModal);
 
-  // Re-render whenever the user navigates back to the Bins tab
-  document
-    .querySelector('[data-route="bins"]')
-    ?.addEventListener('click', () => renderBinView().catch(console.error));
-
   wireModals();
   renderBinView().catch(console.error);
+}
+
+/** Re-render the current bins view. Called by store subscriptions. */
+export async function refreshBinsView(): Promise<void> {
+  await navigateToBin(currentParentId);
 }
 
 // ── Navigation ─────────────────────────────────────────────────
@@ -400,14 +402,7 @@ async function submitBinModal(): Promise<void> {
       await createBin(input.value, currentParentId);
     }
     closeBinModal();
-
-    // If we're inside a bin detail view, re-render that view to show new/renamed bins.
-    // Otherwise, re-render the root level view.
-    if (currentParentId) {
-      await navigateToBin(currentParentId);
-    } else {
-      await renderBinView();
-    }
+    // Re-render is handled by the store's bins-changed event
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Something went wrong.';
@@ -461,15 +456,14 @@ async function confirmDelete(): Promise<void> {
   if (!_deleteTarget) return;
   const bin = _deleteTarget;
 
-  await deleteBin(bin.id);
-
   // If we were browsing inside this bin, navigate up to its former parent
   if (currentParentId === bin.id) {
     currentParentId = bin.parentId;
   }
 
+  await deleteBin(bin.id);
   closeDeleteModal();
-  await renderBinView();
+  // Re-render is handled by the store's bins-changed event
 }
 
 // ── Add choice modal ───────────────────────────────────────────

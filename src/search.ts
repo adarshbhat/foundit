@@ -11,17 +11,12 @@ const SVG_BIN = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="
 
 const SVG_CHEVRON = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
-// ── Navigation callbacks (set by app to avoid circular imports) ─
+// ── Navigation callback (set by app to avoid circular imports) ─
 
-let _navigateToRoute: ((route: string) => void) | null = null;
-let _navigateToBin: ((binId: string) => void) | null = null;
+let _goToBin: ((binId: string) => void) | null = null;
 
-export function setSearchNavCallbacks(
-  navigateToRoute: (route: string) => void,
-  navigateToBin: (binId: string) => void,
-): void {
-  _navigateToRoute = navigateToRoute;
-  _navigateToBin = navigateToBin;
+export function setSearchGoToBin(cb: (binId: string) => void): void {
+  _goToBin = cb;
 }
 
 // ── Search logic ──────────────────────────────────────────────
@@ -111,8 +106,7 @@ function makeBinSearchCard(bin: Bin): HTMLElement {
   card.setAttribute('aria-label', `Go to ${bin.name}`);
 
   const goToBin = () => {
-    _navigateToRoute?.('bins');
-    _navigateToBin?.(bin.id);
+    _goToBin?.(bin.id);
   };
 
   card.addEventListener('click', goToBin);
@@ -157,7 +151,7 @@ function makeBinSearchCard(bin: Bin): HTMLElement {
 
 let _debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Re-run the current search query, e.g. after an item is moved. */
+/** Re-run the current search query. Called by store subscriptions. */
 export async function refreshSearch(): Promise<void> {
   const input = document.getElementById('search-input') as HTMLInputElement | null;
   if (!input || !input.value.trim()) return;
