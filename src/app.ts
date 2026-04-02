@@ -1,7 +1,7 @@
 import { applyInstallGate } from './install';
 import { openDB } from './db';
 import { initBins } from './bins';
-import { initSearch, setSearchNavCallbacks } from './search';
+import { initSearch, setSearchNavCallbacks, refreshSearch } from './search';
 import {
   getRecentItems,
   getLocationPath,
@@ -140,6 +140,7 @@ export async function init(): Promise<boolean> {
   // Refresh recent items when item detail is closed (after move/edit/delete)
   setItemDetailCloseCallback(() => {
     renderRecentItems().catch(console.error);
+    refreshSearch().catch(console.error);
   });
 
   // Render recent items on initial load

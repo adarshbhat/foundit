@@ -157,6 +157,14 @@ function makeBinSearchCard(bin: Bin): HTMLElement {
 
 let _debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Re-run the current search query, e.g. after an item is moved. */
+export async function refreshSearch(): Promise<void> {
+  const input = document.getElementById('search-input') as HTMLInputElement | null;
+  if (!input || !input.value.trim()) return;
+  const results = await performSearch(input.value);
+  await renderSearchResults(results);
+}
+
 export function initSearch(): void {
   const input = document.getElementById('search-input') as HTMLInputElement | null;
   if (!input) return;
